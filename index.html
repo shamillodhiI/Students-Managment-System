@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Techrution Institute of Technology - SMS</title>
+<script>
+  // Suppress Tailwind's harmless "CDN in production" console warning only —
+  // all other console warnings still show normally.
+  (function(){
+    const originalWarn = console.warn;
+    console.warn = function(...args){
+      if(typeof args[0]==='string' && args[0].includes('cdn.tailwindcss.com')) return;
+      originalWarn.apply(console,args);
+    };
+  })();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{--brand:#4f46e5;--brand-dark:#4338ca;--bg:#f4f5f9;}
+  body{background:var(--bg);}
+  ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+  .badge{padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:600;display:inline-block}
+  .b-green{background:#dcfce7;color:#166534}.b-red{background:#fee2e2;color:#991b1b}
+  .b-yellow{background:#fef9c3;color:#854d0e}.b-blue{background:#dbeafe;color:#1e40af}
+  .b-gray{background:#e5e7eb;color:#374151}
+  table{border-collapse:collapse}
+  th{font-size:11px;text-transform:uppercase;color:#6b7280;letter-spacing:.03em}
+  tr:hover td{background:#f8fafc}
+  input,select,textarea{outline:none}
+  input:focus,select:focus,textarea:focus{box-shadow:0 0 0 2px var(--brand);border-color:transparent}
+  .card{background:#fff;border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);border:1px solid #eef0f4}
+  .sidebar-link.active{background:var(--brand);color:#fff}
+  .sidebar-link.active svg{color:#fff}
+  @media print{
+    .no-print{display:none!important}
+    body{background:#fff}
+    #printArea{display:block!important}
+  }
+  #printArea{display:none}
+  .fade{animation:fadeIn .2s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body class="text-slate-800">
+<div id="toast" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 no-print"></div>
+<div id="app" class="flex min-h-screen"></div>
+<div id="modalRoot" class="no-print"></div>
+<div id="printArea"></div>
+
+<script>
+/* ================= DATA LAYER ================= */
+const LS_KEY='techrution_sms_v1';
+function uid(p){return p+'_'+Math.random().toString(36).slice(2,9)}
+function todayStr(){return new Date().toISOString().slice(0,10)}
+function fmtMoney(n){return 'Rs. '+Number(n||0).toLocaleString('en-PK')}
+function fmtDate(d){if(!d)return '-';const dt=new Date(d);return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
+
+function seedData(){
+  const courses=[
+    {id:'c1',name:'Web Development',code:'WD-101',duration:'6 Months',fee:45000,instructor:'Ahmed Raza',description:'Full-stack web development with React & Node.js',status:'Active'},
+    {id:'c2',name:'Graphic Designing',code:'GD-101',duration:'4 Months',fee:30000,instructor:'Sana Malik',description:'Adobe Photoshop, Illustrator & branding basics',status:'Active'},
+    {id:'c3',name:'Digital Marketing',code:'DM-101',duration:'3 Months',fee:25000,instructor:'Bilal Hussain',description:'SEO, social media & Google Ads',status:'Active'},
+    {id:'c4',name:'Networking (CCNA)',code:'NW-101',duration:'6 Months',fee:50000,instructor:'Usman Tariq',description:'Cisco networking fundamentals',status:'Active'},
+    {id:'c5',name:'Spoken English',code:'SE-101',duration:'2 Months',fee:12000,instructor:'Ayesha Khan',description:'Communication & fluency course',status:'Inactive'},
+  ];
+  const names=[['Ali Hassan','Muhammad Hassan'],['Fatima Noor','Abdul Noor'],['Zainab Bibi','Tariq Mehmood'],['Hamza Sheikh','Imran Sheikh'],['Ayesha Siddiqui','Kamran Siddiqui'],['Bilal Ahmed','Nasir Ahmed'],['Sara Khan','Javed Khan'],['Usman Ali','Riaz Ali'],['Mahnoor Fatima','Shahid Iqbal'],['Danish Raza','Ejaz Raza'],['Komal Nasir','Nasir Iqbal'],['Rehan Malik','Farhan Malik'],['Areeba Yousaf','Yousaf Khan']];
+  const cities=['Karachi','Lahore','Islamabad','Rawalpindi','Faisalabad','Multan'];
+  const students=names.map((n,i)=>{
+    const course=courses[i%4];
+    const total=course.fee, paid=[total,Math.round(total*.5),0,Math.round(total*.8)][i%4];
+    const academic=['Currently Studying','Currently Studying','Graduated','Dropped / Left'][i%4===3?2:(i%5===0?1:0)];
+    return {
+      id:uid('s'),studentId:'TIT-'+(1001+i),name:n[0],fatherName:n[1],gender:i%2?'Female':'Male',
+      dateOfBirth:`${1999+(i%6)}-0${(i%9)+1}-1${i%9}`,cnic:'',photo:'',
+      phone:'03'+(10+i)+'-'+(1000000+i*137).toString().slice(0,7),alternatePhone:'',
+      email:n[0].toLowerCase().replace(' ','.')+'@example.com',
+      address:'Street '+(i+1)+', Block '+String.fromCharCode(65+i%5),city:cities[i%cities.length],
+      courseId:course.id,batch:'Batch-'+(i%3+1),instructor:course.instructor,
+      joiningDate:`2026-0${(i%6)+1}-1${i%9}`,expectedCompletionDate:`2026-1${(i%2)+1}-0${(i%9)+1}`,
+      academicStatus:i%7===0?'Graduated':academic,activeStatus:i%9===0?'Inactive':'Active',notes:'',
+      fee:{total,paid,paymentStatus:paid===0?'Pending':(paid>=total?'Cleared':'Partially Paid'),
+        lastPaymentDate:paid>0?`2026-0${(i%6)+1}-2${i%9}`:'',nextDueDate:`2026-1${(i%2)+1}-01`,notes:''},
+      createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),isDemo:true
+    };
+  });
+  const payments=[];
+  students.forEach(s=>{
+    if(s.fee.paid>0){
+      const admission=Math.round(s.fee.total*0.2);
+      payments.push({id:uid('p'),studentId:s.id,date:s.joiningDate,amount:admission,paymentMethod:'Cash',receiptNumber:'REC-'+uid('').slice(2,7).toUpperCase(),notes:'Admission fee',createdAt:new Date().toISOString()});
+      const rest=s.fee.paid-admission;
+      if(rest>0)payments.push({id:uid('p'),studentId:s.id,date:s.fee.lastPaymentDate,amount:rest,paymentMethod:['Cash','Bank Transfer','Online'][Math.floor(Math.random()*3)],receiptNumber:'REC-'+uid('').slice(2,7).toUpperCase(),notes:'',createdAt:new Date().toISOString()});
+    }
+  });
+  const attendance=[];
+  students.forEach(s=>{
+    for(let d=1;d<=15;d++){
+      const date=`2026-09-${d<10?'0'+d:d}`;
+      const r=Math.random();
+      attendance.push({id:uid('a'),studentId:s.id,date,courseId:s.courseId,status:r<0.78?'Present':(r<0.9?'Absent':(r<0.96?'Late':'Leave')),notes:''});
+    }
+  });
+  return {institute:{name:'Techrution Institute of Technology',address:'Main Boulevard, Karachi, Pakistan',phone:'021-1234567',email:'info@techrution.edu.pk',website:'www.techrution.edu.pk',logo:'',currency:'PKR',dateFormat:'DD-MM-YYYY',theme:'indigo'},
+    students,courses,attendance,payments};
+}
+
+function loadDB(){
+  let raw=localStorage.getItem(LS_KEY);
+  if(!raw){const seed=seedData();localStorage.setItem(LS_KEY,JSON.stringify(seed));return seed;}
+  try{return JSON.parse(raw);}catch(e){const seed=seedData();localStorage.setItem(LS_KEY,JSON.stringify(seed));return seed;}
+}
+function saveDB(){localStorage.setItem(LS_KEY,JSON.stringify(DB));}
+let DB=loadDB();
+DB.biometrics=DB.biometrics||[];DB.bioLog=DB.bioLog||[];DB.auditLog=DB.auditLog||[];
+if(DB.institute.bioResetSec===undefined)DB.institute.bioResetSec=15;
+if(!DB.bioSeeded){ // demo: pre-enroll 4 demo students so identification can be tested immediately
+  DB.students.filter(s=>s.isDemo).slice(0,4).forEach((s,i)=>DB.biometrics.push({id:uid('b'),studentId:s.id,enrollmentStatus:'Enrolled',templateRef:'demo_tpl_'+uid(''),enrolledAt:new Date().toISOString(),updatedAt:new Date().toISOString(),createdAt:new Date().toISOString(),scannerDeviceId:'DEMO-SCANNER-001',fingerPosition:'Right Index',lastVerifiedAt:''}));
+  DB.bioSeeded=true;saveDB();
+}
+
+/* ================ DERIVED HELPERS ================= */
+function courseName(id){const c=DB.courses.find(c=>c.id===id);return c?c.name:'-';}
+function studentAttendance(sid){
+  const recs=DB.attendance.filter(a=>a.studentId===sid);
+  const total=recs.length,present=recs.filter(r=>r.status==='Present').length,
+    absent=recs.filter(r=>r.status==='Absent').length,late=recs.filter(r=>r.status==='Late').length,
+    leave=recs.filter(r=>r.status==='Leave').length;
+  const pct=total?Math.round((present/total)*100):0;
+  return {total,present,absent,late,leave,pct};
+}
+function computeFeeStatus(s){
+  const remaining=s.fee.total-s.fee.paid;
+  let status='Pending';
+  if(remaining<=0)status='Cleared';
+  else if(s.fee.paid>0)status='Partially Paid';
+  if(s.fee.nextDueDate && new Date(s.fee.nextDueDate)<new Date() && remaining>0)status='Overdue';
+  return status;
+}
+function refreshFeeStatus(s){s.fee.paymentStatus=computeFeeStatus(s);}
+
+/* ================ TOAST ================= */
+function toast(msg,type='success'){
+  const el=document.createElement('div');
+  el.className=`fade px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${type==='error'?'bg-red-600':'bg-emerald-600'}`;
+  el.textContent=msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(()=>el.remove(),2800);
+}
+
+/* ================ ROUTER STATE ================= */
+let state={route:'dashboard',studentId:null,search:'',filters:{},attCourse:'',attDate:todayStr()};
+
+function nav(route,params={}){state={...state,route,_tried:false,...params};render();}
+
+/* ================ MODAL HELPERS ================= */
+function openModal(html){document.getElementById('modalRoot').innerHTML=`
+  <div class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" id="modalOverlay">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto fade">${html}</div>
+  </div>`;
+  document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target.id==='modalOverlay')closeModal();});
+}
+function closeModal(){document.getElementById('modalRoot').innerHTML='';}
+function confirmDialog(msg,onYes,label='Delete'){
+  openModal(`<div class="p-6">
+    <h3 class="text-lg font-semibold mb-2">Please confirm</h3>
+    <p class="text-slate-600 mb-6">${msg}</p>
+    <div class="flex justify-end gap-2">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-lg border">Cancel</button>
+      <button id="confirmYes" class="px-4 py-2 rounded-lg bg-red-600 text-white">${label}</button>
+    </div></div>`);
+  document.getElementById('confirmYes').onclick=()=>{onYes();closeModal();};
+}
+
+/* ================ SIDEBAR / LAYOUT ================= */
+const NAV=[
+  {id:'dashboard',label:'Dashboard',icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'},
+  {id:'students',label:'Students',icon:'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6 0a4 4 0 10-4-4'},
+  {id:'addStudent',label:'Add Student',icon:'M12 4v16m8-8H4'},
+  {id:'attendance',label:'Attendance',icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'},
+  {id:'biometric',label:'Biometric Identification',icon:'M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4'},
+  {id:'fees',label:'Fees Management',icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 10v2m0-2c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
+  {id:'courses',label:'Courses',icon:'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'},
+  {id:'reports',label:'Reports',icon:'M9 17v-2a4 4 0 014-4h4m-4-4h.01M9 3h6a2 2 0 012 2v14a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2z'},
+  {id:'settings',label:'Settings',icon:'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z'},
+];
+
+function icon(path,cls='w-5 h-5'){return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="${path}"/></svg>`;}
+
+function layout(content){
+  const inst=DB.institute;
+  return `
+  <aside class="no-print w-64 bg-white border-r hidden lg:flex flex-col shrink-0">
+    <div class="h-16 flex items-center gap-3 px-5 border-b">
+      <div class="w-10 h-10 rounded-xl bg-indigo-100 border-2 border-dashed border-indigo-300 flex items-center justify-center text-indigo-500 text-xs font-bold shrink-0">LOGO</div>
+      <div class="leading-tight overflow-hidden">
+        <p class="font-bold text-sm truncate">${inst.name}</p>
+        <p class="text-[11px] text-slate-400">Management System</p>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      ${NAV.map(n=>`<a href="#" onclick="nav('${n.id}');return false;" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 ${state.route===n.id?'active':''}">${icon(n.icon)}<span>${n.label}</span></a>`).join('')}
+    </nav>
+    <div class="p-4 border-t text-[11px] text-slate-400">Admin: <span class="font-semibold text-slate-600">Institute Manager</span></div>
+  </aside>
+  <div class="flex-1 flex flex-col min-w-0">
+    <header class="no-print h-16 bg-white border-b flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleMobileNav()" class="lg:hidden p-2 rounded-lg hover:bg-slate-100">${icon('M4 6h16M4 12h16M4 18h16')}</button>
+        <div class="relative hidden md:block">
+          <input id="globalSearch" placeholder="Search students by name, ID, phone..." class="w-72 border rounded-xl pl-9 pr-3 py-2 text-sm bg-slate-50" oninput="globalSearch(this.value)">
+          <span class="absolute left-3 top-2.5 text-slate-400">${icon('M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z','w-4 h-4')}</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-500 hidden sm:block">${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>
+        <div class="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold text-sm">M</div>
+      </div>
+    </header>
+    <div id="mobileNav" class="no-print hidden lg:hidden bg-white border-b px-3 py-2 space-y-1">
+      ${NAV.map(n=>`<a href="#" onclick="nav('${n.id}');document.getElementById('mobileNav').classList.add('hidden');return false;" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${state.route===n.id?'bg-indigo-600 text-white':'text-slate-600'}">${n.label}</a>`).join('')}
+    </div>
+    <main class="flex-1 p-4 lg:p-6 overflow-x-hidden">${content}</main>
+  </div>`;
+}
+function toggleMobileNav(){document.getElementById('mobileNav').classList.toggle('hidden');}
+function globalSearch(v){state.search=v;if(state.route!=='students')nav('students');else renderMain();}
+
+/* ================ DASHBOARD ================= */
+function viewDashboard(){
+  const st=DB.students;
+  const active=st.filter(s=>s.activeStatus==='Active').length;
+  const inactive=st.length-active;
+  const studying=st.filter(s=>s.academicStatus==='Currently Studying').length;
+  const graduated=st.filter(s=>s.academicStatus==='Graduated').length;
+  const totalFee=st.reduce((a,s)=>a+s.fee.total,0);
+  const paidFee=st.reduce((a,s)=>a+s.fee.paid,0);
+  const pendingFee=totalFee-paidFee;
+  const clearedAcc=st.filter(s=>computeFeeStatus(s)==='Cleared').length;
+  const pendingAcc=st.length-clearedAcc;
+  const today=DB.attendance.filter(a=>a.date===todayStr());
+  const todayPresent=today.filter(a=>a.status==='Present').length;
+  const overallAtt=DB.attendance.length?Math.round((DB.attendance.filter(a=>a.status==='Present').length/DB.attendance.length)*100):0;
+
+  const cards=[
+    ['Total Students',st.length,'text-indigo-600','bg-indigo-50'],
+    ['Active Students',active,'text-emerald-600','bg-emerald-50'],
+    ['Inactive Students',inactive,'text-red-600','bg-red-50'],
+    ['Currently Studying',studying,'text-blue-600','bg-blue-50'],
+    ['Graduated',graduated,'text-purple-600','bg-purple-50'],
+    ['Total Courses',DB.courses.length,'text-amber-600','bg-amber-50'],
+    ['Fee Pending',fmtMoney(pendingFee),'text-red-600','bg-red-50'],
+    ['Fee Cleared',fmtMoney(paidFee),'text-emerald-600','bg-emerald-50'],
+    [`Today's Attendance`,today.length?`${todayPresent}/${today.length}`:'No records','text-cyan-600','bg-cyan-50'],
+    ['Attendance %',overallAtt+'%','text-fuchsia-600','bg-fuchsia-50'],
+    ['Fingerprints Enrolled',st.filter(s=>bioEnrolled(s.id)).length,'text-emerald-600','bg-emerald-50'],
+    ['Not Enrolled',st.filter(s=>!bioEnrolled(s.id)).length,'text-slate-600','bg-slate-50'],
+    ['Enrollment %',(st.length?(st.filter(s=>bioEnrolled(s.id)).length/st.length*100).toFixed(1):0)+'%','text-indigo-600','bg-indigo-50'],
+  ];
+  setTimeout(()=>drawDashCharts(active,inactive,studying,graduated,paidFee,pendingFee),0);
+  return `
+  <div class="mb-5"><h1 class="text-xl font-bold">Dashboard</h1><p class="text-sm text-slate-500">Overview of ${DB.institute.name}</p></div>
+  <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+    ${cards.map(c=>`<div class="card p-4"><p class="text-xs text-slate-500 mb-1">${c[0]}</p><p class="text-2xl font-bold ${c[2]}">${c[1]}</p></div>`).join('')}
+  </div>
+  <div class="grid lg:grid-cols-3 gap-4">
+    <div class="card p-4"><p class="font-semibold text-sm mb-3">Active vs Inactive</p><canvas id="chartActive" height="180"></canvas></div>
+    <div class="card p-4"><p class="font-semibold text-sm mb-3">Studying vs Graduated</p><canvas id="chartAcademic" height="180"></canvas></div>
+    <div class="card p-4"><p class="font-semibold text-sm mb-3">Fees Overview</p><canvas id="chartFees" height="180"></canvas></div>
+    <div class="card p-4 lg:col-span-3"><p class="font-semibold text-sm mb-3">Students by Course</p><canvas id="chartCourse" height="90"></canvas></div>
+  </div>`;
+}
+let chartRefs={};
+function drawDashCharts(active,inactive,studying,graduated,paid,pending){
+  Object.values(chartRefs).forEach(c=>c&&c.destroy());
+  const ctx=id=>document.getElementById(id).getContext('2d');
+  chartRefs.a=new Chart(ctx('chartActive'),{type:'doughnut',data:{labels:['Active','Inactive'],datasets:[{data:[active,inactive],backgroundColor:['#4f46e5','#e5e7eb']}]},options:{plugins:{legend:{position:'bottom'}}}});
+  chartRefs.b=new Chart(ctx('chartAcademic'),{type:'doughnut',data:{labels:['Studying','Graduated','Other'],datasets:[{data:[studying,graduated,DB.students.length-studying-graduated],backgroundColor:['#0ea5e9','#8b5cf6','#f59e0b']}]},options:{plugins:{legend:{position:'bottom'}}}});
+  chartRefs.c=new Chart(ctx('chartFees'),{type:'doughnut',data:{labels:['Paid','Pending'],datasets:[{data:[paid,pending],backgroundColor:['#10b981','#ef4444']}]},options:{plugins:{legend:{position:'bottom'}}}});
+  const byCourse=DB.courses.map(c=>DB.students.filter(s=>s.courseId===c.id).length);
+  chartRefs.d=new Chart(ctx('chartCourse'),{type:'bar',data:{labels:DB.courses.map(c=>c.name),datasets:[{label:'Students',data:byCourse,backgroundColor:'#4f46e5',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+}
+
+/* ================ STUDENTS LIST ================= */
+function statusBadge(txt){
+  const map={Active:'b-green',Inactive:'b-red','Currently Studying':'b-blue',Graduated:'b-gray','Dropped / Left':'b-red',
+    Cleared:'b-green','Partially Paid':'b-yellow',Pending:'b-red',Overdue:'b-red'};
+  return `<span class="badge ${map[txt]||'b-gray'}">${txt}</span>`;
+}
+function filteredStudents(){
+  let list=[...DB.students];
+  const q=(state.search||'').toLowerCase().trim();
+  if(q)list=list.filter(s=>[s.name,s.studentId,s.fatherName,s.phone,s.email].join(' ').toLowerCase().includes(q));
+  const f=state.filters;
+  if(f.course)list=list.filter(s=>s.courseId===f.course);
+  if(f.active)list=list.filter(s=>s.activeStatus===f.active);
+  if(f.academic)list=list.filter(s=>s.academicStatus===f.academic);
+  if(f.fee)list=list.filter(s=>computeFeeStatus(s)===f.fee);
+  if(f.bio)list=list.filter(s=>bioEnrolled(s.id)===(f.bio==='Enrolled'));
+  return list;
+}
+function viewStudents(){
+  const list=filteredStudents();
+  return `
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+    <div><h1 class="text-xl font-bold">Students</h1><p class="text-sm text-slate-500">${list.length} of ${DB.students.length} students</p></div>
+    <button onclick="nav('addStudent')" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700">+ Add Student</button>
+  </div>
+  <div class="card p-4 mb-4 flex flex-wrap gap-3">
+    <input value="${state.search||''}" oninput="state.search=this.value;renderMain()" placeholder="Search name, ID, phone, father..." class="border rounded-lg px-3 py-2 text-sm flex-1 min-w-[200px]">
+    <select onchange="state.filters.course=this.value;renderMain()" class="border rounded-lg px-3 py-2 text-sm"><option value="">All Courses</option>${DB.courses.map(c=>`<option value="${c.id}" ${state.filters.course===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
+    <select onchange="state.filters.active=this.value;renderMain()" class="border rounded-lg px-3 py-2 text-sm"><option value="">Active/Inactive</option><option>Active</option><option>Inactive</option></select>
+    <select onchange="state.filters.academic=this.value;renderMain()" class="border rounded-lg px-3 py-2 text-sm"><option value="">Academic Status</option><option>Currently Studying</option><option>Graduated</option><option>Dropped / Left</option></select>
+    <select onchange="state.filters.fee=this.value;renderMain()" class="border rounded-lg px-3 py-2 text-sm"><option value="">Fee Status</option><option>Cleared</option><option>Partially Paid</option><option>Pending</option><option>Overdue</option></select>
+    <select onchange="state.filters.bio=this.value;renderMain()" class="border rounded-lg px-3 py-2 text-sm"><option value="">Biometric: All</option><option ${state.filters.bio==='Enrolled'?'selected':''}>Enrolled</option><option ${state.filters.bio==='Not Enrolled'?'selected':''}>Not Enrolled</option></select>
+    <button onclick="state.search='';state.filters={};renderMain()" class="text-sm text-slate-500 underline">Clear</button>
+  </div>
+  <div class="card overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead><tr class="border-b bg-slate-50"><th class="text-left p-3">Student</th><th class="text-left p-3">Course</th><th class="text-left p-3">Phone</th><th class="text-left p-3">Status</th><th class="text-left p-3">Fee</th><th class="text-left p-3">Attendance</th><th class="text-left p-3">Biometric</th><th class="text-left p-3">Actions</th></tr></thead>
+      <tbody>
+      ${list.length?list.map(s=>{
+        const att=studentAttendance(s.id);
+        return `<tr class="border-b last:border-0">
+          <td class="p-3"><p class="font-medium">${s.name}</p><p class="text-xs text-slate-400">${s.studentId} • ${s.fatherName}</p></td>
+          <td class="p-3">${courseName(s.courseId)}</td>
+          <td class="p-3">${s.phone}</td>
+          <td class="p-3">${statusBadge(s.activeStatus)} ${statusBadge(s.academicStatus)}</td>
+          <td class="p-3">${statusBadge(computeFeeStatus(s))}</td>
+          <td class="p-3">${att.total?att.pct+'%':'-'}</td>
+          <td class="p-3 whitespace-nowrap">${bioEnrolled(s.id)?'<span class="badge b-green">🟢 Enrolled</span>':'<span class="badge b-gray">⚪ Not Enrolled</span> <button onclick="openEnrollModal(\''+s.id+'\')" class="text-indigo-600 text-xs font-medium hover:underline ml-1">Enroll</button>'}</td>
+          <td class="p-3 whitespace-nowrap">
+            <button onclick="nav('profile',{studentId:'${s.id}'})" class="text-indigo-600 hover:underline text-xs font-medium mr-2">View</button>
+            <button onclick="nav('editStudent',{studentId:'${s.id}'})" class="text-slate-600 hover:underline text-xs font-medium mr-2">Edit</button>
+            <button onclick="deleteStudent('${s.id}')" class="text-red-600 hover:underline text-xs font-medium">Delete</button>
+          </td></tr>`;
+      }).join(''):`<tr><td colspan="8" class="p-8 text-center text-slate-400">No students found. Try clearing filters.</td></tr>`}
+      </tbody>
+    </table>
+  </div>`;
+}
+function deleteStudent(id){
+  confirmDialog('Are you sure you want to delete this student? This action cannot be undone.',()=>{
+    DB.students=DB.students.filter(s=>s.id!==id);
+    DB.attendance=DB.attendance.filter(a=>a.studentId!==id);
+    DB.payments=DB.payments.filter(p=>p.studentId!==id);
+    if(bioEnrolled(id)){audit('Fingerprint removed (student deleted)',sCode(id),'Success');BiometricBackend.remove(id);}
+    saveDB();toast('Student deleted');renderMain();
+  });
+}
+
+/* ================ ADD / EDIT STUDENT FORM ================= */
+function studentForm(existing){
+  const s=existing||{studentId:'',name:'',fatherName:'',gender:'Male',dateOfBirth:'',cnic:'',phone:'',alternatePhone:'',email:'',address:'',city:'',courseId:DB.courses[0]?.id||'',batch:'',instructor:'',joiningDate:todayStr(),expectedCompletionDate:'',academicStatus:'Currently Studying',activeStatus:'Active',notes:'',fee:{total:DB.courses[0]?.fee||0,paid:0,lastPaymentDate:'',nextDueDate:'',notes:''}};
+  const isEdit=!!existing;
+  return `
+  <h1 class="text-xl font-bold mb-1">${isEdit?'Edit Student':'Add New Student'}</h1>
+  <p class="text-sm text-slate-500 mb-5">Fill in the student's details below.</p>
+  <form id="studentForm" class="space-y-6" onsubmit="return submitStudentForm(event,'${isEdit?s.id:''}')">
+    <div class="card p-5"><h3 class="font-semibold mb-3 text-sm text-indigo-600">Personal Information</h3>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div><label class="text-xs text-slate-500">Student ID *</label><input required name="studentId" value="${s.studentId||('TIT-'+Math.floor(1000+Math.random()*8999))}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Student Name *</label><input required name="name" value="${s.name}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Father's Name *</label><input required name="fatherName" value="${s.fatherName}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Gender</label><select name="gender" class="w-full border rounded-lg px-3 py-2 mt-1"><option ${s.gender==='Male'?'selected':''}>Male</option><option ${s.gender==='Female'?'selected':''}>Female</option><option ${s.gender==='Other'?'selected':''}>Other</option></select></div>
+        <div><label class="text-xs text-slate-500">Date of Birth</label><input type="date" name="dateOfBirth" value="${s.dateOfBirth}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">CNIC / B-Form</label><input name="cnic" value="${s.cnic}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      </div></div>
+    <div class="card p-5"><h3 class="font-semibold mb-3 text-sm text-indigo-600">Contact Information</h3>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div><label class="text-xs text-slate-500">Phone Number *</label><input required name="phone" pattern="^0[0-9\\-]{9,12}$" title="e.g. 0300-1234567" value="${s.phone}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Alternate Phone</label><input name="alternatePhone" value="${s.alternatePhone}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Email</label><input type="email" name="email" value="${s.email}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div class="md:col-span-2"><label class="text-xs text-slate-500">Home Address</label><input name="address" value="${s.address}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">City</label><input name="city" value="${s.city}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      </div></div>
+    <div class="card p-5"><h3 class="font-semibold mb-3 text-sm text-indigo-600">Course Information</h3>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div><label class="text-xs text-slate-500">Course *</label><select required name="courseId" id="courseSelect" onchange="onCourseChange()" class="w-full border rounded-lg px-3 py-2 mt-1">${DB.courses.map(c=>`<option value="${c.id}" ${s.courseId===c.id?'selected':''}>${c.name}</option>`).join('')}</select></div>
+        <div><label class="text-xs text-slate-500">Batch / Class</label><input name="batch" value="${s.batch}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Instructor</label><input name="instructor" value="${s.instructor}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Joining Date *</label><input required type="date" name="joiningDate" value="${s.joiningDate}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Expected Completion</label><input type="date" name="expectedCompletionDate" value="${s.expectedCompletionDate}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Academic Status</label><select name="academicStatus" class="w-full border rounded-lg px-3 py-2 mt-1">${['Currently Studying','Graduated','Dropped / Left'].map(o=>`<option ${s.academicStatus===o?'selected':''}>${o}</option>`).join('')}</select></div>
+      </div></div>
+    <div class="card p-5"><h3 class="font-semibold mb-3 text-sm text-indigo-600">Student Status</h3>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div><label class="text-xs text-slate-500">Status</label><select name="activeStatus" class="w-full border rounded-lg px-3 py-2 mt-1"><option ${s.activeStatus==='Active'?'selected':''}>Active</option><option ${s.activeStatus==='Inactive'?'selected':''}>Inactive</option></select></div>
+        <div><label class="text-xs text-slate-500">Notes (if inactive)</label><input name="notes" value="${s.notes}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      </div></div>
+    <div class="card p-5"><h3 class="font-semibold mb-3 text-sm text-indigo-600">Fee Information</h3>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div><label class="text-xs text-slate-500">Total Course Fee *</label><input required type="number" min="0" id="feeTotal" name="feeTotal" value="${s.fee.total}" oninput="calcRemaining()" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Paid Amount</label><input type="number" min="0" id="feePaid" name="feePaid" value="${s.fee.paid}" oninput="calcRemaining()" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Remaining Amount</label><input disabled id="feeRemaining" class="w-full border rounded-lg px-3 py-2 mt-1 bg-slate-100" value="${s.fee.total-s.fee.paid}"></div>
+        <div><label class="text-xs text-slate-500">Last Payment Date</label><input type="date" name="lastPaymentDate" value="${s.fee.lastPaymentDate}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Next Due Date</label><input type="date" name="nextDueDate" value="${s.fee.nextDueDate}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Fee Notes</label><input name="feeNotes" value="${s.fee.notes}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      </div></div>
+    <div class="flex justify-end gap-3">
+      <button type="button" onclick="nav('students')" class="px-5 py-2.5 rounded-xl border">Cancel</button>
+      <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-medium">${isEdit?'Save Changes':'Add Student'}</button>
+    </div>
+  </form>`;
+}
+function calcRemaining(){
+  const t=Number(document.getElementById('feeTotal').value||0),p=Number(document.getElementById('feePaid').value||0);
+  document.getElementById('feeRemaining').value=Math.max(t-p,0);
+}
+function onCourseChange(){
+  const c=DB.courses.find(c=>c.id===document.getElementById('courseSelect').value);
+  if(c){document.getElementById('feeTotal').value=c.fee;calcRemaining();}
+}
+function submitStudentForm(e,editId){
+  e.preventDefault();
+  const f=new FormData(e.target);
+  const studentId=f.get('studentId').trim();
+  const dup=DB.students.find(s=>s.studentId===studentId && s.id!==editId);
+  if(dup){toast('Student ID already exists','error');return false;}
+  const total=Math.max(0,Number(f.get('feeTotal')||0)), paid=Math.max(0,Number(f.get('feePaid')||0));
+  if(paid>total){toast('Paid amount cannot exceed total fee','error');return false;}
+  const data={
+    studentId,name:f.get('name').trim(),fatherName:f.get('fatherName').trim(),gender:f.get('gender'),
+    dateOfBirth:f.get('dateOfBirth'),cnic:f.get('cnic'),phone:f.get('phone'),alternatePhone:f.get('alternatePhone'),
+    email:f.get('email'),address:f.get('address'),city:f.get('city'),courseId:f.get('courseId'),batch:f.get('batch'),
+    instructor:f.get('instructor'),joiningDate:f.get('joiningDate'),expectedCompletionDate:f.get('expectedCompletionDate'),
+    academicStatus:f.get('academicStatus'),activeStatus:f.get('activeStatus'),notes:f.get('notes'),
+    fee:{total,paid,lastPaymentDate:f.get('lastPaymentDate'),nextDueDate:f.get('nextDueDate'),notes:f.get('feeNotes'),paymentStatus:''},
+    updatedAt:new Date().toISOString()
+  };
+  data.fee.paymentStatus=computeFeeStatus(data);
+  if(editId){
+    const idx=DB.students.findIndex(s=>s.id===editId);
+    DB.students[idx]={...DB.students[idx],...data};
+    toast('Student updated successfully');
+  }else{
+    data.id=uid('s');data.createdAt=new Date().toISOString();data.isDemo=false;
+    DB.students.push(data);
+    toast('Student added successfully');
+  }
+  saveDB();nav('students');
+  return false;
+}
+
+/* ================ STUDENT PROFILE ================= */
+function viewProfile(id){
+  const s=DB.students.find(s=>s.id===id);
+  if(!s)return `<p>Student not found.</p>`;
+  const att=studentAttendance(s.id);
+  const pays=DB.payments.filter(p=>p.studentId===s.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const timeline=[
+    {d:s.createdAt,t:'Student registered'},
+    {d:s.joiningDate,t:'Joined course: '+courseName(s.courseId)},
+    ...pays.map(p=>({d:p.date,t:`Payment received: ${fmtMoney(p.amount)} (${p.paymentMethod})`})),
+  ];
+  if(s.academicStatus==='Graduated')timeline.push({d:s.expectedCompletionDate,t:'Graduated'});
+  timeline.sort((a,b)=>new Date(a.d)-new Date(b.d));
+  return `
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-5 no-print">
+    <button onclick="nav('students')" class="text-sm text-indigo-600">&larr; Back to Students</button>
+    <div class="flex gap-2 flex-wrap">
+      <button onclick="nav('editStudent',{studentId:'${s.id}'})" class="px-3 py-2 rounded-lg border text-sm">Edit Student</button>
+      <button onclick="openPaymentModal('${s.id}')" class="px-3 py-2 rounded-lg border text-sm">Add Fee Payment</button>
+      <button onclick="quickAttendance('${s.id}')" class="px-3 py-2 rounded-lg border text-sm">Mark Attendance</button>
+      <button onclick="printProfile('${s.id}')" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm">Print Profile</button>
+    </div>
+  </div>
+  <div class="card p-6 mb-5">
+    <div class="flex items-center gap-4">
+      <div class="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold">${s.name[0]}</div>
+      <div>
+        <h1 class="text-xl font-bold">${s.name}</h1>
+        <p class="text-sm text-slate-500">${s.studentId} • ${courseName(s.courseId)} • ${statusBadge(s.activeStatus)} ${statusBadge(s.academicStatus)}</p>
+      </div>
+    </div>
+  </div>
+  <div class="grid lg:grid-cols-3 gap-5">
+    <div class="card p-5 lg:col-span-1">
+      <h3 class="font-semibold mb-3">Student Information</h3>
+      <dl class="text-sm space-y-2">
+        <div class="flex justify-between"><dt class="text-slate-500">Father's Name</dt><dd>${s.fatherName}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Date of Birth</dt><dd>${fmtDate(s.dateOfBirth)}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Gender</dt><dd>${s.gender}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Phone</dt><dd>${s.phone}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Email</dt><dd class="truncate max-w-[140px]">${s.email||'-'}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Address</dt><dd class="text-right">${s.address||'-'}, ${s.city||''}</dd></div>
+      </dl>
+      <h3 class="font-semibold mt-5 mb-3">Course Information</h3>
+      <dl class="text-sm space-y-2">
+        <div class="flex justify-between"><dt class="text-slate-500">Course</dt><dd>${courseName(s.courseId)}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Batch</dt><dd>${s.batch||'-'}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Instructor</dt><dd>${s.instructor||'-'}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Joining Date</dt><dd>${fmtDate(s.joiningDate)}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Expected Completion</dt><dd>${fmtDate(s.expectedCompletionDate)}</dd></div>
+      </dl>
+    </div>
+    <div class="lg:col-span-2 space-y-5">
+      <div class="card p-5">
+        <h3 class="font-semibold mb-3">Fee Summary</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div><p class="text-slate-500 text-xs">Total Fee</p><p class="font-bold">${fmtMoney(s.fee.total)}</p></div>
+          <div><p class="text-slate-500 text-xs">Paid</p><p class="font-bold text-emerald-600">${fmtMoney(s.fee.paid)}</p></div>
+          <div><p class="text-slate-500 text-xs">Remaining</p><p class="font-bold text-red-600">${fmtMoney(s.fee.total-s.fee.paid)}</p></div>
+          <div><p class="text-slate-500 text-xs">Status</p><p>${statusBadge(computeFeeStatus(s))}</p></div>
+          <div><p class="text-slate-500 text-xs">Last Payment</p><p>${fmtDate(s.fee.lastPaymentDate)}</p></div>
+          <div><p class="text-slate-500 text-xs">Next Due</p><p>${fmtDate(s.fee.nextDueDate)}</p></div>
+        </div>
+        ${pays.length?`<table class="w-full text-xs mt-4"><thead><tr class="text-left text-slate-400 border-b"><th class="py-1">Date</th><th>Amount</th><th>Method</th><th>Receipt</th></tr></thead><tbody>${pays.map(p=>`<tr class="border-b last:border-0"><td class="py-1">${fmtDate(p.date)}</td><td>${fmtMoney(p.amount)}</td><td>${p.paymentMethod}</td><td>${p.receiptNumber}</td></tr>`).join('')}</tbody></table>`:'<p class="text-xs text-slate-400 mt-3">No payments recorded yet.</p>'}
+      </div>
+      <div class="card p-5">
+        <h3 class="font-semibold mb-3">Attendance Summary</h3>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+          <div><p class="text-slate-500 text-xs">Total</p><p class="font-bold">${att.total}</p></div>
+          <div><p class="text-slate-500 text-xs">Present</p><p class="font-bold text-emerald-600">${att.present}</p></div>
+          <div><p class="text-slate-500 text-xs">Absent</p><p class="font-bold text-red-600">${att.absent}</p></div>
+          <div><p class="text-slate-500 text-xs">Late</p><p class="font-bold text-amber-600">${att.late}</p></div>
+          <div><p class="text-slate-500 text-xs">Attendance %</p><p class="font-bold">${att.pct}%</p></div>
+        </div>
+      </div>
+      ${bioProfileSection(s)}
+      <div class="card p-5">
+        <h3 class="font-semibold mb-3">Activity Timeline</h3>
+        <ul class="space-y-2 text-sm max-h-56 overflow-y-auto">
+          ${timeline.map(t=>`<li class="flex gap-3"><span class="text-slate-400 w-24 shrink-0">${fmtDate(t.d)}</span><span>${t.t}</span></li>`).join('')}
+        </ul>
+      </div>
+    </div>
+  </div>`;
+}
+function openPaymentModal(sid){
+  const s=DB.students.find(s=>s.id===sid);
+  openModal(`<form onsubmit="return submitPayment(event,'${sid}')" class="p-6">
+    <h3 class="text-lg font-semibold mb-4">Add Fee Payment — ${s.name}</h3>
+    <p class="text-sm text-slate-500 mb-3">Remaining: <b>${fmtMoney(s.fee.total-s.fee.paid)}</b></p>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div><label class="text-xs text-slate-500">Payment Date *</label><input required type="date" name="date" value="${todayStr()}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      <div><label class="text-xs text-slate-500">Amount Paid *</label><input required type="number" min="1" name="amount" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      <div><label class="text-xs text-slate-500">Payment Method</label><select name="method" class="w-full border rounded-lg px-3 py-2 mt-1"><option>Cash</option><option>Bank Transfer</option><option>Online</option><option>Other</option></select></div>
+      <div><label class="text-xs text-slate-500">Receipt Number</label><input name="receipt" value="REC-${uid('').slice(2,7).toUpperCase()}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      <div class="col-span-2"><label class="text-xs text-slate-500">Notes</label><input name="notes" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+    </div>
+    <div class="flex justify-end gap-2"><button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg border">Cancel</button><button class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Save Payment</button></div>
+  </form>`);
+}
+function submitPayment(e,sid){
+  e.preventDefault();
+  const f=new FormData(e.target);
+  const amount=Number(f.get('amount'));
+  const s=DB.students.find(s=>s.id===sid);
+  if(amount>(s.fee.total-s.fee.paid)){toast('Amount exceeds remaining fee','error');return false;}
+  DB.payments.push({id:uid('p'),studentId:sid,date:f.get('date'),amount,paymentMethod:f.get('method'),receiptNumber:f.get('receipt'),notes:f.get('notes'),createdAt:new Date().toISOString()});
+  s.fee.paid+=amount;s.fee.lastPaymentDate=f.get('date');refreshFeeStatus(s);s.updatedAt=new Date().toISOString();
+  saveDB();closeModal();toast('Payment recorded');renderMain();
+  return false;
+}
+function quickAttendance(sid){nav('attendance',{studentId:sid});}
+
+/* ================ ATTENDANCE ================= */
+function viewAttendance(){
+  const list=DB.students.filter(s=>!state.attCourse||s.courseId===state.attCourse);
+  const dateRecs=DB.attendance.filter(a=>a.date===state.attDate);
+  return `
+  <h1 class="text-xl font-bold mb-1">Attendance</h1><p class="text-sm text-slate-500 mb-5">Mark daily attendance by course & batch.</p>
+  <div class="card p-4 mb-4 flex flex-wrap gap-3 items-end">
+    <div><label class="text-xs text-slate-500">Date</label><input type="date" value="${state.attDate}" onchange="state.attDate=this.value;renderMain()" class="border rounded-lg px-3 py-2 mt-1 block"></div>
+    <div><label class="text-xs text-slate-500">Course</label><select onchange="state.attCourse=this.value;renderMain()" class="border rounded-lg px-3 py-2 mt-1 block"><option value="">All Courses</option>${DB.courses.map(c=>`<option value="${c.id}" ${state.attCourse===c.id?'selected':''}>${c.name}</option>`).join('')}</select></div>
+    <button onclick="saveAllAttendance()" class="ml-auto bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium">Save Attendance</button>
+  </div>
+  <div class="card overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead><tr class="border-b bg-slate-50"><th class="text-left p-3">Student</th><th class="text-left p-3">Course</th><th class="text-left p-3">Status</th><th class="text-left p-3">Attendance %</th></tr></thead>
+      <tbody>
+      ${list.map(s=>{
+        const rec=dateRecs.find(a=>a.studentId===s.id);
+        const att=studentAttendance(s.id);
+        return `<tr class="border-b last:border-0" data-sid="${s.id}">
+          <td class="p-3">${s.name}<p class="text-xs text-slate-400">${s.studentId}</p></td>
+          <td class="p-3">${courseName(s.courseId)}</td>
+          <td class="p-3">
+            <select class="attSelect border rounded-lg px-2 py-1 text-xs">
+              ${['Present','Absent','Late','Leave'].map(o=>`<option ${((rec?rec.status:'Present')===o)?'selected':''}>${o}</option>`).join('')}
+            </select>
+          </td>
+          <td class="p-3">${att.pct}%</td>
+        </tr>`;
+      }).join('')||`<tr><td colspan="4" class="p-8 text-center text-slate-400">No students in this course.</td></tr>`}
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-4"><a href="#" onclick="showAttHistory();return false;" class="text-indigo-600 text-sm">View Attendance History &rarr;</a></div>`;
+}
+function saveAllAttendance(){
+  document.querySelectorAll('[data-sid]').forEach(row=>{
+    const sid=row.dataset.sid, status=row.querySelector('.attSelect').value;
+    const idx=DB.attendance.findIndex(a=>a.studentId===sid && a.date===state.attDate);
+    if(idx>-1)DB.attendance[idx].status=status;
+    else DB.attendance.push({id:uid('a'),studentId:sid,date:state.attDate,courseId:DB.students.find(s=>s.id===sid).courseId,status,notes:''});
+  });
+  saveDB();toast('Attendance saved for '+fmtDate(state.attDate));renderMain();
+}
+function showAttHistory(){
+  const recs=[...DB.attendance].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,100);
+  openModal(`<div class="p-6"><h3 class="text-lg font-semibold mb-4">Attendance History (latest 100)</h3>
+  <div class="max-h-96 overflow-y-auto"><table class="w-full text-xs"><thead><tr class="text-left border-b text-slate-400"><th class="py-1">Date</th><th>Student</th><th>Course</th><th>Status</th></tr></thead>
+  <tbody>${recs.map(r=>{const s=DB.students.find(s=>s.id===r.studentId);return `<tr class="border-b last:border-0"><td class="py-1">${fmtDate(r.date)}</td><td>${s?s.name:'-'}</td><td>${courseName(r.courseId)}</td><td>${statusBadge(r.status)}</td></tr>`;}).join('')}</tbody></table></div>
+  <div class="flex justify-end mt-4"><button onclick="closeModal()" class="px-4 py-2 rounded-lg border">Close</button></div></div>`);
+}
+
+/* ================ FEES MANAGEMENT ================= */
+function viewFees(){
+  const list=DB.students;
+  return `
+  <div class="flex items-center justify-between mb-5"><div><h1 class="text-xl font-bold">Fees Management</h1><p class="text-sm text-slate-500">All student fee records</p></div>
+  <button onclick="exportCSV('fees')" class="px-3 py-2 rounded-lg border text-sm">Export CSV</button></div>
+  <div class="card overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead><tr class="border-b bg-slate-50"><th class="text-left p-3">Student</th><th class="text-left p-3">Course</th><th class="text-left p-3">Total</th><th class="text-left p-3">Paid</th><th class="text-left p-3">Remaining</th><th class="text-left p-3">Next Due</th><th class="text-left p-3">Status</th><th class="text-left p-3">Action</th></tr></thead>
+      <tbody>${list.map(s=>`<tr class="border-b last:border-0">
+        <td class="p-3">${s.name}<p class="text-xs text-slate-400">${s.studentId}</p></td>
+        <td class="p-3">${courseName(s.courseId)}</td>
+        <td class="p-3">${fmtMoney(s.fee.total)}</td>
+        <td class="p-3">${fmtMoney(s.fee.paid)}</td>
+        <td class="p-3 font-medium">${fmtMoney(s.fee.total-s.fee.paid)}</td>
+        <td class="p-3">${fmtDate(s.fee.nextDueDate)}</td>
+        <td class="p-3">${statusBadge(computeFeeStatus(s))}</td>
+        <td class="p-3"><button onclick="openPaymentModal('${s.id}')" class="text-indigo-600 text-xs font-medium hover:underline">Add Payment</button></td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+/* ================ COURSES ================= */
+function viewCourses(){
+  return `
+  <div class="flex items-center justify-between mb-5"><div><h1 class="text-xl font-bold">Courses</h1><p class="text-sm text-slate-500">${DB.courses.length} courses</p></div>
+  <button onclick="openCourseModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium">+ Add Course</button></div>
+  <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+  ${DB.courses.map(c=>{const cnt=DB.students.filter(s=>s.courseId===c.id).length;return `
+    <div class="card p-5">
+      <div class="flex justify-between items-start"><div><h3 class="font-semibold">${c.name}</h3><p class="text-xs text-slate-400">${c.code} • ${c.duration}</p></div>${statusBadge(c.status)}</div>
+      <p class="text-sm text-slate-600 mt-2">${c.description||''}</p>
+      <div class="flex justify-between text-sm mt-3"><span class="text-slate-500">Fee</span><span class="font-semibold">${fmtMoney(c.fee)}</span></div>
+      <div class="flex justify-between text-sm"><span class="text-slate-500">Instructor</span><span>${c.instructor}</span></div>
+      <div class="flex justify-between text-sm"><span class="text-slate-500">Enrolled</span><span>${cnt} students</span></div>
+      <div class="flex gap-2 mt-4">
+        <button onclick="openCourseModal('${c.id}')" class="flex-1 border rounded-lg py-1.5 text-xs">Edit</button>
+        <button onclick="deleteCourse('${c.id}')" class="flex-1 border rounded-lg py-1.5 text-xs text-red-600">Delete</button>
+      </div>
+    </div>`;}).join('')}
+  </div>`;
+}
+function openCourseModal(id){
+  const c=id?DB.courses.find(c=>c.id===id):{name:'',code:'',duration:'',fee:0,instructor:'',description:'',status:'Active'};
+  openModal(`<form onsubmit="return submitCourse(event,'${id||''}')" class="p-6">
+    <h3 class="text-lg font-semibold mb-4">${id?'Edit':'Add'} Course</h3>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="text-xs text-slate-500">Course Name *</label><input required name="name" value="${c.name}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      <div><label class="text-xs text-slate-500">Course Code *</label><input required name="code" value="${c.code}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      <div><label class="text-xs text-slate-500">Duration</label><input name="duration" value="${c.duration}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      <div><label class="text-xs text-slate-500">Fee *</label><input required type="number" min="0" name="fee" value="${c.fee}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      <div><label class="text-xs text-slate-500">Instructor</label><input name="instructor" value="${c.instructor}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      <div><label class="text-xs text-slate-500">Status</label><select name="status" class="w-full border rounded-lg px-3 py-2 mt-1"><option ${c.status==='Active'?'selected':''}>Active</option><option ${c.status==='Inactive'?'selected':''}>Inactive</option></select></div>
+      <div class="col-span-2"><label class="text-xs text-slate-500">Description</label><textarea name="description" class="w-full border rounded-lg px-3 py-2 mt-1">${c.description}</textarea></div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4"><button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg border">Cancel</button><button class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Save</button></div>
+  </form>`);
+}
+function submitCourse(e,id){
+  e.preventDefault();const f=new FormData(e.target);
+  const data={name:f.get('name'),code:f.get('code'),duration:f.get('duration'),fee:Number(f.get('fee')),instructor:f.get('instructor'),description:f.get('description'),status:f.get('status')};
+  if(id){Object.assign(DB.courses.find(c=>c.id===id),data);toast('Course updated');}
+  else{data.id=uid('c');DB.courses.push(data);toast('Course added');}
+  saveDB();closeModal();renderMain();return false;
+}
+function deleteCourse(id){
+  if(DB.students.some(s=>s.courseId===id)){toast('Cannot delete: students are enrolled in this course','error');return;}
+  confirmDialog('Delete this course? This cannot be undone.',()=>{DB.courses=DB.courses.filter(c=>c.id!==id);saveDB();toast('Course deleted');renderMain();});
+}
+
+/* ================ REPORTS ================= */
+function viewReports(){
+  return `
+  <h1 class="text-xl font-bold mb-1">Reports</h1><p class="text-sm text-slate-500 mb-5">Generate and export institute reports.</p>
+  <div class="grid md:grid-cols-3 gap-4">
+    <div class="card p-5"><h3 class="font-semibold mb-2">Student Reports</h3>
+      <button onclick="exportCSV('students')" class="text-sm text-indigo-600 hover:underline block mb-1">Export All Students (CSV)</button>
+      <button onclick="printReport('students')" class="text-sm text-indigo-600 hover:underline block">Print Student List</button>
+    </div>
+    <div class="card p-5"><h3 class="font-semibold mb-2">Attendance Reports</h3>
+      <button onclick="exportCSV('attendance')" class="text-sm text-indigo-600 hover:underline block mb-1">Export Attendance (CSV)</button>
+      <button onclick="printReport('attendance')" class="text-sm text-indigo-600 hover:underline block">Print Attendance Summary</button>
+    </div>
+    <div class="card p-5"><h3 class="font-semibold mb-2">Fee Reports</h3>
+      <button onclick="exportCSV('fees')" class="text-sm text-indigo-600 hover:underline block mb-1">Export Fee Report (CSV)</button>
+      <button onclick="exportCSV('payments')" class="text-sm text-indigo-600 hover:underline block">Export Payment History (CSV)</button>
+    </div>
+  </div>`;
+}
+function toCSV(rows){return rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');}
+function downloadCSV(name,rows){
+  const blob=new Blob([toCSV(rows)],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.csv';a.click();
+}
+function exportCSV(type){
+  if(type==='students'){
+    const rows=[['Student ID','Name',"Father's Name",'Phone','Course','Status','Academic Status','Fee Status']];
+    DB.students.forEach(s=>rows.push([s.studentId,s.name,s.fatherName,s.phone,courseName(s.courseId),s.activeStatus,s.academicStatus,computeFeeStatus(s)]));
+    downloadCSV('students_report',rows);
+  }else if(type==='attendance'){
+    const rows=[['Date','Student','Course','Status']];
+    DB.attendance.forEach(a=>{const s=DB.students.find(s=>s.id===a.studentId);rows.push([a.date,s?s.name:'-',courseName(a.courseId),a.status]);});
+    downloadCSV('attendance_report',rows);
+  }else if(type==='fees'){
+    const rows=[['Student ID','Name','Course','Total','Paid','Remaining','Status']];
+    DB.students.forEach(s=>rows.push([s.studentId,s.name,courseName(s.courseId),s.fee.total,s.fee.paid,s.fee.total-s.fee.paid,computeFeeStatus(s)]));
+    downloadCSV('fee_report',rows);
+  }else if(type==='payments'){
+    const rows=[['Date','Student','Amount','Method','Receipt']];
+    DB.payments.forEach(p=>{const s=DB.students.find(s=>s.id===p.studentId);rows.push([p.date,s?s.name:'-',p.amount,p.paymentMethod,p.receiptNumber]);});
+    downloadCSV('payment_history',rows);
+  }
+  toast('CSV exported');
+}
+function printReport(type){
+  let html='';
+  if(type==='students'){
+    html=`<h1>${DB.institute.name} — Student List</h1><table border="1" cellpadding="6" style="border-collapse:collapse;width:100%"><tr><th>ID</th><th>Name</th><th>Course</th><th>Status</th></tr>${DB.students.map(s=>`<tr><td>${s.studentId}</td><td>${s.name}</td><td>${courseName(s.courseId)}</td><td>${s.activeStatus}</td></tr>`).join('')}</table>`;
+  }else{
+    html=`<h1>${DB.institute.name} — Attendance Summary</h1><table border="1" cellpadding="6" style="border-collapse:collapse;width:100%"><tr><th>Student</th><th>Present</th><th>Absent</th><th>Late</th><th>%</th></tr>${DB.students.map(s=>{const a=studentAttendance(s.id);return `<tr><td>${s.name}</td><td>${a.present}</td><td>${a.absent}</td><td>${a.late}</td><td>${a.pct}%</td></tr>`;}).join('')}</table>`;
+  }
+  document.getElementById('printArea').innerHTML=html;window.print();
+}
+function printProfile(sid){
+  const s=DB.students.find(s=>s.id===sid);const att=studentAttendance(sid);
+  document.getElementById('printArea').innerHTML=`
+    <div style="font-family:sans-serif;padding:20px">
+    <h1>${DB.institute.name}</h1><p>${DB.institute.address} | ${DB.institute.phone}</p><hr>
+    <h2>Student Profile</h2>
+    <p><b>${s.name}</b> (${s.studentId}) — ${courseName(s.courseId)}</p>
+    <p>Father's Name: ${s.fatherName} | DOB: ${fmtDate(s.dateOfBirth)} | Phone: ${s.phone}</p>
+    <p>Status: ${s.activeStatus} / ${s.academicStatus} | Joined: ${fmtDate(s.joiningDate)}</p>
+    <h3>Fee Summary</h3><p>Total: ${fmtMoney(s.fee.total)} | Paid: ${fmtMoney(s.fee.paid)} | Remaining: ${fmtMoney(s.fee.total-s.fee.paid)} | Status: ${computeFeeStatus(s)}</p>
+    <h3>Attendance</h3><p>Total: ${att.total} | Present: ${att.present} | Absent: ${att.absent} | Late: ${att.late} | Percentage: ${att.pct}%</p>
+    </div>`;
+  window.print();
+}
+
+/* ================ SETTINGS ================= */
+function viewSettings(){
+  const i=DB.institute;
+  return `
+  <h1 class="text-xl font-bold mb-5">Settings</h1>
+  <form onsubmit="return saveSettings(event)" class="space-y-6 max-w-2xl">
+    <div class="card p-5"><h3 class="font-semibold mb-3">Institute Information</h3>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-16 h-16 rounded-xl bg-indigo-100 border-2 border-dashed border-indigo-300 flex items-center justify-center text-indigo-500 text-xs font-bold">LOGO</div>
+        <p class="text-xs text-slate-500">Logo placeholder — replace anytime by editing this area once you have the file.</p>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div><label class="text-xs text-slate-500">Institute Name</label><input name="name" value="${i.name}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Phone</label><input name="phone" value="${i.phone}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div class="md:col-span-2"><label class="text-xs text-slate-500">Address</label><input name="address" value="${i.address}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Email</label><input name="email" value="${i.email}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Website</label><input name="website" value="${i.website}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      </div></div>
+    <div class="card p-5"><h3 class="font-semibold mb-3">Application Settings</h3>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div><label class="text-xs text-slate-500">Currency</label><input name="currency" value="${i.currency}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+        <div><label class="text-xs text-slate-500">Date Format</label><input name="dateFormat" value="${i.dateFormat}" class="w-full border rounded-lg px-3 py-2 mt-1"></div>
+      </div></div>
+    <div class="card p-5"><h3 class="font-semibold mb-3">Demo Data</h3>
+      <p class="text-sm text-slate-500 mb-3">This installation currently includes seeded demo students for testing.</p>
+      <button type="button" onclick="clearDemoData()" class="px-4 py-2 rounded-lg border text-red-600 text-sm">Remove All Demo Data</button>
+    </div>
+    <button class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium">Save Settings</button>
+  </form>`;
+}
+function saveSettings(e){
+  e.preventDefault();const f=new FormData(e.target);
+  Object.assign(DB.institute,{name:f.get('name'),phone:f.get('phone'),address:f.get('address'),email:f.get('email'),website:f.get('website'),currency:f.get('currency'),dateFormat:f.get('dateFormat')});
+  saveDB();toast('Settings saved');render();return false;
+}
+function clearDemoData(){
+  confirmDialog('Remove all demo/sample students and their records?',()=>{
+    const demoIds=DB.students.filter(s=>s.isDemo).map(s=>s.id);
+    DB.students=DB.students.filter(s=>!s.isDemo);
+    DB.attendance=DB.attendance.filter(a=>!demoIds.includes(a.studentId));
+    DB.payments=DB.payments.filter(p=>!demoIds.includes(p.studentId));
+    DB.biometrics=DB.biometrics.filter(b=>!demoIds.includes(b.studentId));
+    saveDB();toast('Demo data removed');render();
+  });
+}
+
+/* ================ BIOMETRIC MODULE ================ */
+/* Layers: (1) FingerprintScannerService = hardware/SDK adapter, (2) BiometricBackend = template storage + matching,
+   (3) UI below. Demo mode implements 1 & 2 locally. For a real scanner, replace FingerprintScannerService
+   (marked "SDK INTEGRATION POINT") and move BiometricBackend to a secure server. */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+class BioError extends Error{constructor(code,extra){super(code);this.code=code;this.extra=extra;}}
+const BIO_MSG={SCANNER_DISCONNECTED:'Fingerprint scanner is not connected. Please connect the device and try again.',POOR_QUALITY:'Poor-quality scan. Clean the sensor, press your finger firmly and try again.',DUPLICATE:'Fingerprint already enrolled.',PERMISSION:'You do not have permission to perform this action.',TIMEOUT:'The scanner timed out. Please try again.'};
+const bioMsg=e=>BIO_MSG[e&&e.code]||'Something went wrong. Please try again.';
+function canManageBiometrics(){return true;} // hook: connect to auth/roles later
+function fmtDT(iso){const d=new Date(iso);return {date:fmtDate(iso),time:d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};}
+const sCode=id=>{const s=DB.students.find(s=>s.id===id);return s?s.studentId:'Unknown';};
+const bioEnrolled=sid=>!!DB.biometrics.find(b=>b.studentId===sid);
+const DemoControls={connected:true,poorNext:false,finger:'new'};
+
+/* ---- SDK INTEGRATION POINT: replace this object with an adapter for the real scanner SDK/local bridge.
+   Keep the same methods: connect, disconnect, getStatus, capture, enroll, identify, cancel, dispose. ---- */
+const FingerprintScannerService={
+  mode:'demo',deviceId:'DEMO-SCANNER-001',status:'Disconnected',_fresh:null,
+  getStatus(){return this.status;},
+  async connect(){
+    if(this.status==='Initializing')return;
+    this.status='Initializing';notifyScanner();await sleep(700);
+    if(!DemoControls.connected){this.status='Disconnected';audit('Scanner connection failed','','Failed');notifyScanner();throw new BioError('SCANNER_DISCONNECTED');}
+    this.status='Ready';audit('Scanner connected','','Success');notifyScanner();
+  },
+  disconnect(){if(this.status==='Disconnected')return;this.status='Disconnected';audit('Scanner disconnected','','Success');notifyScanner();},
+  _fingerId(){const b=DemoControls.finger!=='new'&&BiometricBackend.get(DemoControls.finger);return b?b.templateRef:(this._fresh=this._fresh||'fp_'+uid(''));},
+  async capture(){
+    if(this.status!=='Ready')throw new BioError('SCANNER_DISCONNECTED');
+    this.status='Scanning';notifyScanner();await sleep(1100);
+    if(!DemoControls.connected){this.status='Disconnected';notifyScanner();throw new BioError('SCANNER_DISCONNECTED');}
+    this.status='Ready';
+    if(DemoControls.poorNext){DemoControls.poorNext=false;notifyScanner();throw new BioError('POOR_QUALITY');}
+    notifyScanner();return {quality:80+Math.floor(Math.random()*15),fingerId:this._fingerId()};
+  },
+  async enroll(captures){const t={templateRef:captures[0].fingerId,fingerPosition:'Right Index',deviceId:this.deviceId};this._fresh=null;return t;},
+  async identify(){const c=await this.capture();this._fresh=null;return {templateRef:c.fingerId};},
+  cancel(){},dispose(){this.disconnect();}
+};
+function notifyScanner(){if(state.route==='biometric')renderMain();}
+
+/* ---- Backend (demo: runs in browser; production: secure server, encrypted templates, or SDK-internal matching) ---- */
+const BiometricBackend={
+  get(sid){return DB.biometrics.find(b=>b.studentId===sid);},
+  findByTemplate(ref){return DB.biometrics.find(b=>b.templateRef===ref);},
+  save(sid,tpl){
+    const dup=this.findByTemplate(tpl.templateRef);
+    if(dup&&dup.studentId!==sid)throw new BioError('DUPLICATE',dup.studentId);
+    const now=new Date().toISOString(),b=this.get(sid);
+    const f={enrollmentStatus:'Enrolled',templateRef:tpl.templateRef,fingerPosition:tpl.fingerPosition,scannerDeviceId:tpl.deviceId,enrolledAt:now,updatedAt:now};
+    if(b)Object.assign(b,f);else DB.biometrics.push({id:uid('b'),studentId:sid,createdAt:now,lastVerifiedAt:'',...f});
+    saveDB();return !!b;
+  },
+  remove(sid){DB.biometrics=DB.biometrics.filter(b=>b.studentId!==sid);saveDB();},
+  async identify(ref){await sleep(500);const b=this.findByTemplate(ref);if(!b)return null;b.lastVerifiedAt=new Date().toISOString();saveDB();return b.studentId;}
+};
+function audit(action,studentId,result){DB.auditLog.unshift({id:uid('l'),ts:new Date().toISOString(),action,studentId:studentId||'',result,deviceId:FingerprintScannerService.deviceId});DB.auditLog=DB.auditLog.slice(0,500);saveDB();}
+function logIdent(sid,result){
+  DB.bioLog.unshift({id:uid('v'),ts:new Date().toISOString(),studentId:sid?sCode(sid):'Unknown',result,action:'Identification',deviceId:FingerprintScannerService.deviceId});
+  DB.bioLog=DB.bioLog.slice(0,500);audit('Identification',sid?sCode(sid):'',result);
+}
+async function ensureScanner(){
+  if(state._tried)return;state._tried=true;
+  const s=FingerprintScannerService.getStatus();
+  if(s==='Disconnected'||s==='Error'){try{await FingerprintScannerService.connect();}catch(e){}}
+}
+
+/* ---- Demo control panel (clearly separated from real workflow) ---- */
+function demoPanel(){
+  const enr_=DB.biometrics.map(b=>`<option value="${b.studentId}" ${DemoControls.finger===b.studentId?'selected':''}>Finger of ${DB.students.find(s=>s.id===b.studentId)?.name||'?'}</option>`).join('');
+  return `<div class="border border-dashed border-amber-400 bg-amber-50 rounded-xl p-3 text-xs space-y-2">
+    <p class="font-semibold text-amber-800">DEMO CONTROLS (simulate hardware behaviour)</p>
+    <label class="flex items-center gap-2"><input type="checkbox" ${DemoControls.connected?'checked':''} onchange="toggleDemoScanner(this.checked)"> Scanner plugged in</label>
+    <label class="flex items-center gap-2"><input type="checkbox" ${DemoControls.poorNext?'checked':''} onchange="DemoControls.poorNext=this.checked"> Next capture is poor quality</label>
+    <label class="block">Finger on scanner: <select onchange="DemoControls.finger=this.value" class="border rounded px-2 py-1 ml-1"><option value="new">New / unknown finger</option>${enr_}</select></label>
+    <label class="block">Auto-reset result after (sec, 0 = never): <input type="number" min="0" value="${DB.institute.bioResetSec}" onchange="DB.institute.bioResetSec=Number(this.value)||0;saveDB()" class="border rounded px-2 py-1 w-16 ml-1"></label>
+  </div>`;
+}
+async function toggleDemoScanner(on){
+  DemoControls.connected=on;
+  if(!on)FingerprintScannerService.disconnect();
+  else try{await FingerprintScannerService.connect();}catch(e){}
+  if(enr&&document.getElementById('modalOverlay'))drawEnroll();
+}
+const demoBanner=`<div class="bg-amber-100 text-amber-800 text-xs font-bold rounded-lg px-3 py-2 text-center">DEMO MODE — REAL FINGERPRINT SCANNER NOT CONNECTED</div>`;
+function scannerPill(){
+  const st=FingerprintScannerService.getStatus();
+  const ok=st==='Ready'||st==='Scanning';const busy=st==='Initializing'||st==='Scanning';
+  return `<span class="badge ${ok?'b-green':(busy?'b-yellow':'b-red')}">${ok?'🟢 Scanner Connected':(busy?'🟡 '+st:'🔴 Scanner Disconnected')} · ${st}</span>`;
+}
+
+/* ---- Enrollment workflow ---- */
+let enr=null;
+function openEnrollModal(sid,re){
+  if(!canManageBiometrics()){toast(BIO_MSG.PERMISSION,'error');return;}
+  enr={sid,re:!!re,step:0,caps:[],busy:false,err:'',done:false};
+  if(FingerprintScannerService.getStatus()==='Disconnected')FingerprintScannerService.connect().catch(()=>{}).then(()=>enr&&drawEnroll());
+  drawEnroll();
+}
+function closeEnroll(){enr=null;closeModal();}
+function drawEnroll(){
+  const s=DB.students.find(x=>x.id===enr.sid);
+  const prompts=['Place your finger on the fingerprint scanner.','Lift your finger and place it again.','Place the same finger again.'];
+  const ready=FingerprintScannerService.getStatus()==='Ready';
+  openModal(`<div class="p-6 space-y-4">
+    ${demoBanner}
+    <h3 class="text-lg font-semibold">${enr.re?'Re-Enroll Fingerprint':'Fingerprint Enrollment'}</h3>
+    <div class="grid grid-cols-2 gap-2 text-sm">
+      <div><p class="text-xs text-slate-500">Student</p><p class="font-medium">${s.name}</p></div>
+      <div><p class="text-xs text-slate-500">Student ID</p><p class="font-medium">${s.studentId}</p></div>
+      <div><p class="text-xs text-slate-500">Status</p><p>${bioEnrolled(s.id)?'Enrolled':'Not Enrolled'}</p></div>
+      <div><p class="text-xs text-slate-500">Scanner</p><p>${scannerPill()}</p></div>
+    </div>
+    ${enr.done?`<div class="bg-emerald-50 text-emerald-700 rounded-xl p-4 text-center font-semibold">✓ Fingerprint enrollment completed successfully.</div>
+      <div class="flex justify-end"><button onclick="closeEnroll()" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Done</button></div>`:`
+      <div class="text-center py-2"><p class="font-medium">${prompts[enr.step]}</p><p class="text-sm text-slate-500 mt-1">Scan ${enr.step+1} of 3</p>
+        <div class="h-2 bg-slate-100 rounded-full mt-3"><div class="h-2 bg-indigo-600 rounded-full transition-all" style="width:${enr.step/3*100}%"></div></div>
+        ${enr.busy?'<p class="text-sm text-amber-600 mt-3 animate-pulse">Scanning… keep your finger on the sensor</p>':''}
+        ${enr.err?`<p class="text-sm text-red-600 mt-3">${enr.err}</p>`:''}</div>
+      ${demoPanel()}
+      <div class="flex justify-end gap-2"><button onclick="closeEnroll()" class="px-4 py-2 rounded-lg border">Cancel</button>
+      ${ready?`<button ${enr.busy?'disabled':''} onclick="enrollCapture()" class="px-4 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-50">Capture (simulate finger)</button>`:`<button onclick="FingerprintScannerService.connect().catch(()=>{}).then(drawEnroll)" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Connect Scanner</button>`}</div>`}
+  </div>`);
+}
+async function enrollCapture(){
+  if(enr.busy)return;enr.busy=true;enr.err='';drawEnroll();
+  try{
+    const c=await FingerprintScannerService.capture();
+    enr.caps.push(c);enr.step++;
+    if(enr.step===3){
+      const tpl=await FingerprintScannerService.enroll(enr.caps);
+      const re=BiometricBackend.save(enr.sid,tpl); // old template replaced only now, after success
+      audit(re?'Fingerprint re-enrolled':'Fingerprint enrolled',sCode(enr.sid),'Success');
+      enr.done=true;
+    }
+  }catch(e){
+    if(e.code==='DUPLICATE'){enr.err=`Fingerprint already enrolled. Associated Student ID: ${sCode(e.extra)}`;audit('Enrollment rejected (duplicate)',sCode(enr.sid),'Failed');enr.caps=[];enr.step=0;}
+    else enr.err=bioMsg(e);
+  }
+  enr.busy=false;drawEnroll();if(enr.done)renderMain();
+}
+function reEnrollFingerprint(sid){confirmDialog('Re-enroll this student\'s fingerprint? The existing enrollment stays active until the new one succeeds.',()=>setTimeout(()=>openEnrollModal(sid,true),0),'Continue');}
+function removeFingerprint(sid){
+  if(!canManageBiometrics()){toast(BIO_MSG.PERMISSION,'error');return;}
+  confirmDialog('Are you sure you want to remove this student\'s fingerprint enrollment?',()=>{BiometricBackend.remove(sid);audit('Fingerprint removed',sCode(sid),'Success');toast('Fingerprint enrollment removed');renderMain();},'Remove');
+}
+function bioProfileSection(s){
+  const b=BiometricBackend.get(s.id);
+  return `<div class="card p-5 no-print"><h3 class="font-semibold mb-3">Biometric / Fingerprint</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+      <div><p class="text-slate-500 text-xs">Fingerprint Status</p><p>${b?'<span class="badge b-green">Enrolled</span>':'<span class="badge b-gray">Not Enrolled</span>'}</p></div>
+      <div><p class="text-slate-500 text-xs">Enrollment Date</p><p>${b?fmtDate(b.enrolledAt):'-'}</p></div>
+      <div><p class="text-slate-500 text-xs">Last Verification</p><p>${b&&b.lastVerifiedAt?fmtDate(b.lastVerifiedAt):'-'}</p></div>
+      <div><p class="text-slate-500 text-xs">Finger Used</p><p>${b?b.fingerPosition:'-'}</p></div>
+      <div class="col-span-2"><p class="text-slate-500 text-xs">Scanner / Device</p><p>${b?b.scannerDeviceId+' (Demo)':'-'}</p></div>
+    </div>
+    <div class="flex gap-2 mt-4 flex-wrap">
+      ${b?`<button onclick="reEnrollFingerprint('${s.id}')" class="px-3 py-2 rounded-lg border text-sm">Re-Enroll Fingerprint</button>
+      <button onclick="removeFingerprint('${s.id}')" class="px-3 py-2 rounded-lg border text-sm text-red-600">Remove Fingerprint</button>`
+      :`<button onclick="openEnrollModal('${s.id}')" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm">Enroll Fingerprint</button>`}
+    </div></div>`;
+}
+
+/* ---- Identification screen ---- */
+let bio={phase:'idle'},bioTimer=null;
+function bioReset(){clearTimeout(bioTimer);bio={phase:'idle'};if(state.route==='biometric')renderMain();}
+async function bioSimulateScan(){
+  if(bio.phase==='scanning'||bio.phase==='processing')return;
+  clearTimeout(bioTimer);
+  try{
+    if(FingerprintScannerService.getStatus()!=='Ready')throw new BioError('SCANNER_DISCONNECTED');
+    bio={phase:'scanning'};renderMain();
+    const r=await FingerprintScannerService.identify();
+    bio={phase:'processing'};renderMain();
+    const sid=await BiometricBackend.identify(r.templateRef);
+    if(sid){bio={phase:'result',sid};logIdent(sid,'Success');const sec=Number(DB.institute.bioResetSec);if(sec>0)bioTimer=setTimeout(bioReset,sec*1000);}
+    else{bio={phase:'unknown'};logIdent('','Failed');}
+  }catch(e){bio={phase:'error',err:bioMsg(e)};if(e.code!=='SCANNER_DISCONNECTED')logIdent('','Failed');}
+  renderMain();
+}
+function bioResultCard(sid){
+  const s=DB.students.find(x=>x.id===sid);if(!s)return '<p>Record not found.</p>';
+  const att=studentAttendance(s.id),b=BiometricBackend.get(sid),rem=s.fee.total-s.fee.paid;
+  const row=(k,v)=>`<div class="flex justify-between text-sm py-1"><span class="text-slate-500">${k}</span><span class="text-right font-medium">${v||'-'}</span></div>`;
+  return `<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4 flex items-center gap-4">
+      <div class="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold shrink-0">${s.name[0]}</div>
+      <div><p class="text-emerald-700 font-bold">✓ STUDENT IDENTIFIED</p><p class="text-lg font-bold">${s.name}</p><p class="text-sm text-slate-600">${s.studentId} • ${courseName(s.courseId)} • ${s.activeStatus} • ${rem>0?fmtMoney(rem)+' remaining':'Fee cleared'} • Attendance ${att.pct}%</p></div></div>
+    <div class="grid md:grid-cols-2 gap-x-8">
+      <div><h4 class="font-semibold text-sm mt-2 mb-1">Student</h4>${row('Father',s.fatherName)}${row('Phone',s.phone)}${row('Email',s.email)}${row('Address',(s.address||'')+', '+(s.city||''))}${row('Date of Birth',fmtDate(s.dateOfBirth))}
+        <h4 class="font-semibold text-sm mt-3 mb-1">Course</h4>${row('Course',courseName(s.courseId))}${row('Batch',s.batch)}${row('Instructor',s.instructor)}${row('Joined',fmtDate(s.joiningDate))}${row('Expected Completion',fmtDate(s.expectedCompletionDate))}${row('Academic',statusBadge(s.academicStatus))}${row('Status',statusBadge(s.activeStatus))}</div>
+      <div><h4 class="font-semibold text-sm mt-2 mb-1">Fee</h4>${row('Total',fmtMoney(s.fee.total))}${row('Paid',fmtMoney(s.fee.paid))}${row('Remaining',fmtMoney(rem))}${row('Status',statusBadge(computeFeeStatus(s)))}${row('Last Payment',fmtDate(s.fee.lastPaymentDate))}${row('Next Due',fmtDate(s.fee.nextDueDate))}
+        <h4 class="font-semibold text-sm mt-3 mb-1">Attendance</h4>${row('Total Classes',att.total)}${row('Present',att.present)}${row('Absent',att.absent)}${row('Late',att.late)}${row('Percentage',att.pct+'%')}
+        <h4 class="font-semibold text-sm mt-3 mb-1">Biometric</h4>${row('Fingerprint','Enrolled')}${row('Last Verification',b&&b.lastVerifiedAt?fmtDT(b.lastVerifiedAt).date+' '+fmtDT(b.lastVerifiedAt).time:'-')}${row('Verification','<span class="badge b-green">Verified</span>')}</div>
+    </div>
+    <div class="flex gap-2 mt-5"><button onclick="nav('profile',{studentId:'${s.id}'})" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">View Full Profile</button><button onclick="bioReset()" class="px-4 py-2 rounded-lg border text-sm">Scan Another Student</button></div>`;
+}
+function viewBiometric(){
+  setTimeout(ensureScanner,0);
+  const tab=state.bioTab||'identify',ph=bio.phase,st=FingerprintScannerService.getStatus();
+  const tabs=[['identify','Identification'],['log','Verification Log'],['audit','Audit Log']].map(t=>`<button onclick="state.bioTab='${t[0]}';renderMain()" class="px-4 py-2 text-sm rounded-lg ${tab===t[0]?'bg-indigo-600 text-white':'bg-white border'}">${t[1]}</button>`).join('');
+  let body='';
+  if(tab==='identify'){
+    let box='';
+    if(ph==='result')box=`<div class="card p-5">${bioResultCard(bio.sid)}</div>`;
+    else{
+      let inner='';
+      if(st==='Disconnected'||st==='Error'||ph==='error')inner=`<p class="text-red-600 font-medium mb-3">${ph==='error'?bio.err:BIO_MSG.SCANNER_DISCONNECTED}</p><button onclick="state._tried=false;bio={phase:'idle'};ensureScanner();renderMain()" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Connect / Retry</button>`;
+      else if(ph==='unknown')inner=`<p class="text-amber-600 font-bold text-lg">⚠ Fingerprint Not Recognized</p><p class="text-sm text-slate-500 mb-4">No enrolled student was found for this fingerprint.</p><div class="flex gap-2 justify-center"><button onclick="bioReset();bioSimulateScan()" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Try Again</button><button onclick="bioReset()" class="px-4 py-2 rounded-lg border text-sm">Cancel</button><button onclick="state.filters={bio:'Not Enrolled'};state.search='';nav('students')" class="px-4 py-2 rounded-lg border text-sm">Enroll Student</button></div>`;
+      else if(ph==='scanning'||ph==='processing')inner=`<p class="text-indigo-600 font-medium animate-pulse">${ph==='scanning'?'Reading fingerprint…':'Searching biometric records…'}</p>`;
+      else inner=`<p class="text-slate-600 mb-1">Place your finger on the scanner.</p><p class="text-sm text-slate-400 mb-4">Waiting for fingerprint…</p><button onclick="bioSimulateScan()" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Simulate finger on scanner (demo)</button>`;
+      box=`<div class="card p-8 text-center"><div class="mx-auto w-24 h-24 rounded-full border-4 ${ph==='scanning'||ph==='processing'?'border-indigo-500 animate-pulse':'border-slate-200'} flex items-center justify-center text-slate-400 mb-4">${icon('M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4','w-12 h-12')}</div>${inner}</div>`;
+    }
+    body=`<div class="grid lg:grid-cols-3 gap-4"><div class="lg:col-span-2">${box}</div><div>${demoPanel()}</div></div>`;
+  }else if(tab==='log'){
+    body=`<div class="card overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b bg-slate-50"><th class="text-left p-3">Date</th><th class="text-left p-3">Time</th><th class="text-left p-3">Student</th><th class="text-left p-3">Result</th><th class="text-left p-3">Action</th></tr></thead><tbody>${DB.bioLog.length?DB.bioLog.slice(0,100).map(l=>{const t=fmtDT(l.ts);return `<tr class="border-b last:border-0"><td class="p-3">${t.date}</td><td class="p-3">${t.time}</td><td class="p-3">${l.studentId}</td><td class="p-3"><span class="badge ${l.result==='Success'?'b-green':'b-red'}">${l.result}</span></td><td class="p-3">${l.action}</td></tr>`;}).join(''):'<tr><td colspan="5" class="p-8 text-center text-slate-400">No verification activity yet.</td></tr>'}</tbody></table></div>`;
+  }else{
+    body=`<div class="card overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b bg-slate-50"><th class="text-left p-3">Date</th><th class="text-left p-3">Time</th><th class="text-left p-3">Student</th><th class="text-left p-3">Action</th><th class="text-left p-3">Result</th></tr></thead><tbody>${DB.auditLog.length?DB.auditLog.slice(0,100).map(l=>{const t=fmtDT(l.ts);return `<tr class="border-b last:border-0"><td class="p-3">${t.date}</td><td class="p-3">${t.time}</td><td class="p-3">${l.studentId||'-'}</td><td class="p-3">${l.action}</td><td class="p-3"><span class="badge ${l.result==='Success'?'b-green':'b-red'}">${l.result}</span></td></tr>`;}).join(''):'<tr><td colspan="5" class="p-8 text-center text-slate-400">No audit entries yet.</td></tr>'}</tbody></table></div>`;
+  }
+  return `<div class="flex flex-wrap items-center justify-between gap-3 mb-4"><div><h1 class="text-xl font-bold">Biometric Identification</h1><p class="text-sm text-slate-500">Identify students by fingerprint</p></div>${scannerPill()}</div>
+    <div class="mb-4">${demoBanner}</div><div class="flex gap-2 mb-4 flex-wrap">${tabs}</div>${body}`;
+}
+
+/* ================ MAIN RENDER ================= */
+function renderMain(){
+  const el=document.querySelector('main');
+  let html='';
+  switch(state.route){
+    case 'dashboard':html=viewDashboard();break;
+    case 'students':html=viewStudents();break;
+    case 'addStudent':html=studentForm(null);break;
+    case 'editStudent':html=studentForm(DB.students.find(s=>s.id===state.studentId));break;
+    case 'profile':html=viewProfile(state.studentId);break;
+    case 'attendance':html=viewAttendance();break;
+    case 'fees':html=viewFees();break;
+    case 'courses':html=viewCourses();break;
+    case 'reports':html=viewReports();break;
+    case 'settings':html=viewSettings();break;
+    case 'biometric':html=viewBiometric();break;
+    default:html=viewDashboard();
+  }
+  el.innerHTML=`<div class="fade">${html}</div>`;
+  if(document.getElementById('courseSelect'))calcRemaining();
+}
+function render(){
+  document.getElementById('app').innerHTML=layout('');
+  renderMain();
+}
+render();
+</script>
+</body>
+</html>
